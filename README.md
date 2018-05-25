@@ -1,4 +1,4 @@
-#Windows-dotNet-Version
+# Windows-dotNet-Version
 *PowerShell script that generates a report of all .NET Framework versions installed on remote machines
 
 The script will return a list of .NET Framework versions installed on a machine by filtering HKLM:SOFTWARE\Microsoft\NET Framework Setup\NDP\. The script utilises WinRM to enumerate data from remote machines.
@@ -11,12 +11,12 @@ Single hostname or textfile with multiple hosts. When this parameter is omitted 
 Administrator credentials for the servers to allow remote powershell access. This parameter is mandatory for scanning remote machines.
 
 *Verbose
-Print verbose information.
+Prints verbose output.
 
 The script will return the following string objects - Hostname, Framework, Version, Release
 In addition, a list of failed machines are returned inside $failed global variable.
 
-EXAMPLES
+EXAMPLES:
     To get .NET Framework information from the localhost
     PS C:\>Get-dotNETversion.ps1
 

@@ -79,7 +79,7 @@ Function ReadNetVersion ($node) {
         Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; $global:failed += $node; Return }
     }
     
-    # Hopefully should have data in $keydump now but just in case
+    # Hopefully should have data in $keydump now, but just in case...
     If (!($keydump)) { Write-Host "ERROR: No usable data returned by $($node)" -ForegroundColor Red; $global:failed += $node; Return }
  
     # Let's parse the data and build our ResultObject
@@ -98,11 +98,11 @@ Function ReadNetVersion ($node) {
         $results += $ResultObject
     $i = $i+1
     }  
-    return($results)
+return($results)
 }
 
 Function FindRelease ($release) {
-	# Check and update as new releases are added...
+    # Check and update as new releases are added...
     # https://docs.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed
         Switch ($release) {
 		    "378389" {$release = ".NET Framework 4.5";break}
@@ -123,7 +123,7 @@ Function FindRelease ($release) {
 		    "461814" {$release = ".NET Framework 4.7.2";break}
 		    default {}
 		}
-    return($release)
+return($release)
 }
 } # End of Begin
 
@@ -147,9 +147,7 @@ Process {
 	}
 
     # Main loop
-    ForEach ($node in $server) {
-        ReadNetVersion ($node)
-    }
+    ForEach ($node in $server) { ReadNetVersion ($node) }
 } # End of Process
 
 #---------------------------------------------------------[Cleanup]---------------------------------------------------------
