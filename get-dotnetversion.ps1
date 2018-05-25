@@ -1,4 +1,18 @@
-﻿<#
+<#PSScriptInfo
+
+.VERSION 1.0
+
+.GUID db8a42fd-c58d-4d04-936e-3e347d79996d
+
+.AUTHOR Nimal Raj
+
+.TAGS .NET,dotNET,Framework
+
+.PROJECTURI https://github.com/Raj-GT/Windows-dotNet-Version
+
+#> 
+
+<#
 .SYNOPSIS
     List versions of .NET Frameworks installed
     
