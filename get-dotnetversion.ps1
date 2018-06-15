@@ -1,6 +1,6 @@
-<#PSScriptInfo
+﻿<#PSScriptInfo
 
-.VERSION 1.0
+.VERSION 1.1
 
 .GUID db8a42fd-c58d-4d04-936e-3e347d79996d
 
@@ -41,13 +41,16 @@
     System.String, System.Management.Automation.PSCredential
 
 .OUTPUTS
-    System.String. Returns the following string objects - Hostname, Framework, Version, Release
+    System.String. Returns the following string objects - Hostname, Framework, Version, Release, Title
     In addition, a list of failed hosts are returned inside $failed global variable
 
 .NOTES    
-    Version:    1.0
+    Version:    1.1
     Author:     Nimal Raj
     Revisions:  20/05/2018      Initial draft (1.0)
+                15/06/2018      Bugfix for parsing remote data
+                                Added additional verbose outputs
+                                Added numeric Release field and moved ReleaseTitle to Title
 
 .LINK
     https://github.com/Raj-GT/Windows-dotNet-Version  
@@ -81,33 +84,37 @@ Function ReadNetVersion ($node) {
 
     # Read from local registry if scanning localhost
     If ($node -eq $env:computername) { 
-        Write-Verbose -Message "Reading [$($node)]$($script:regkey)"
+        Write-Verbose -Message "Reading localhost [$($node)]$($script:regkey)"
         Try { $keydump = Get-ChildItem "$script:regkey" -Recurse -ErrorAction Stop| Get-ItemProperty -Name Version,Release -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^[vCF]'} | Sort-Object Version}
         Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; Exit }
     }
 
-    # Try remote PowerShell and failback to remote registry
+    # Read remote hosts using WinRM
     Else {
-        Write-Verbose -Message "Reading [$($node)]$($script:regkey)"
+        Write-Verbose -Message "Reading remote host [$($node)]$($script:regkey)"
         Try { $keydump = Invoke-Command -ComputerName $node -Credential $script:creds -ScriptBlock { Get-ChildItem "$using:regkey" -Recurse | Get-ItemProperty -Name Version,Release -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^[vCF]'} | Sort-Object Version } -ErrorAction Stop }
         Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; $global:failed += $node; Return }
     }
     
     # Hopefully should have data in $keydump now, but just in case...
     If (!($keydump)) { Write-Host "ERROR: No usable data returned by $($node)" -ForegroundColor Red; $global:failed += $node; Return }
+
+    Write-Verbose -Message "Raw data from $($node): $keydump"
  
     # Let's parse the data and build our ResultObject
     $i = 0
     While ($i -lt $keydump.Count) {
         $ResultObject = New-Object System.Object 
         $ResultObject | Add-member -Name Hostname -Type NoteProperty -Value $node
-        $ResultObject | Add-member -Name Framework -Type NoteProperty -Value ((Split-Path $keydump.PSPath[$i] -NoQualifier).replace((Convert-Path "$script:regkey"),""))
-        $ResultObject | Add-member -Name Version -Type NoteProperty -Value ($keydump[$i] | get-ItemPropertyValue -Name Version)
-        If ($keydump[$i] | get-ItemProperty -Name Release -ErrorAction SilentlyContinue) { 
-            $ResultObject | Add-member -Name Release -Type NoteProperty -Value (FindRelease($keydump[$i] | get-ItemPropertyValue -Name Release))
+        $ResultObject | Add-member -Name Framework -Type NoteProperty -Value ((Split-Path $keydump[$i].PSPath -NoQualifier).replace((Convert-Path "$script:regkey"),""))
+        $ResultObject | Add-member -Name Version -Type NoteProperty -Value $keydump[$i].Version
+        If ($keydump[$i] | Get-ItemProperty -Name Release -ErrorAction SilentlyContinue) { 
+            $ResultObject | Add-member -Name Release -Type NoteProperty -Value $keydump[$i].Release
+            $ResultObject | Add-member -Name Title -Type NoteProperty -Value (FindRelease($keydump[$i].Release))
             }
         Else {
             $ResultObject | Add-member -Name Release -Type NoteProperty -Value "N/A"
+            $ResultObject | Add-member -Name Title -Type NoteProperty -Value "N/A"
         }   
         $results += $ResultObject
     $i = $i+1

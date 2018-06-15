@@ -15,7 +15,7 @@ The following parameters are accepted by the script.
 **-Verbose**
 >Prints verbose output.
 
-The script will return the following string objects - Hostname, Framework, Version, Release
+The script will return the following string objects - Hostname, Framework, Version, Release, Title
 
 In addition, a list of failed machines are returned inside $failed global variable.
 
