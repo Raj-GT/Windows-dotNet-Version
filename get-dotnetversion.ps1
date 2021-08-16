@@ -61,94 +61,94 @@
 #--------------------------------------------------------[Parameters]-------------------------------------------------------
 [CmdletBinding()]
 param (
-    [Parameter(Mandatory=$false,ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)][Alias('Cn', 'PSComputerName','Servers','Computer')][String[]]$Server,
-    [Parameter(Mandatory=$false)][Alias('Creds','Admin','User')][PSCredential] $Credential
+    [Parameter(Mandatory = $false, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)][Alias('Cn', 'PSComputerName', 'Servers', 'Computer')][String[]]$Server,
+    [Parameter(Mandatory = $false)][Alias('Creds', 'Admin', 'User')][PSCredential] $Credential
 )
 
-Begin { # Start of Begin
-#---------------------------------------------------------[Modules]---------------------------------------------------------
+Begin {
+    # Start of Begin
+    #---------------------------------------------------------[Modules]---------------------------------------------------------
 
-#--------------------------------------------------------[Variables]--------------------------------------------------------
-$script:regkey = "HKLM:SOFTWARE\Microsoft\NET Framework Setup\NDP\"
-$script:creds = $Credential
-$global:failed =@()
-$usage = @'
+    #--------------------------------------------------------[Variables]--------------------------------------------------------
+    $script:regkey = "HKLM:SOFTWARE\Microsoft\NET Framework Setup\NDP\"
+    $script:creds = $Credential
+    $global:failed = @()
+    $usage = @'
 .\Get-dotNETversion.ps1 -server <hostname or list.txt> -Credential <admin credentials>
 
 '@
 
-#--------------------------------------------------------[Functions]--------------------------------------------------------
-Function ReadNetVersion ($node) {
-    $results = @()
-    Write-Verbose -Message "Processing $node"
+    #--------------------------------------------------------[Functions]--------------------------------------------------------
+    Function ReadNetVersion ($node) {
+        $results = @()
+        Write-Verbose -Message "Processing $node"
 
-    # Read from local registry if scanning localhost
-    If ($node -eq $env:computername) { 
-        Write-Verbose -Message "Reading localhost [$($node)]$($script:regkey)"
-        Try { $keydump = Get-ChildItem "$script:regkey" -Recurse -ErrorAction Stop| Get-ItemProperty -Name Version,Release -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^[vCF]'} | Sort-Object Version}
-        Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; Exit }
-    }
+        # Read from local registry if scanning localhost
+        If ($node -eq $env:computername) { 
+            Write-Verbose -Message "Reading localhost [$($node)]$($script:regkey)"
+            Try { $keydump = Get-ChildItem "$script:regkey" -Recurse -ErrorAction Stop | Get-ItemProperty -Name Version, Release -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^[vCF]' } | Sort-Object Version }
+            Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; Exit }
+        }
 
-    # Read remote hosts using WinRM
-    Else {
-        Write-Verbose -Message "Reading remote host [$($node)]$($script:regkey)"
-        Try { $keydump = Invoke-Command -ComputerName $node -Credential $script:creds -ScriptBlock { Get-ChildItem "$using:regkey" -Recurse | Get-ItemProperty -Name Version,Release -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^[vCF]'} | Sort-Object Version } -ErrorAction Stop }
-        Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; $global:failed += $node; Return }
-    }
-    
-    # Hopefully should have data in $keydump now, but just in case...
-    If (!($keydump)) { Write-Host "ERROR: No usable data returned by $($node)" -ForegroundColor Red; $global:failed += $node; Return }
-
-    Write-Verbose -Message "Raw data from $($node): $keydump"
- 
-    # Let's parse the data and build our ResultObject
-    $i = 0
-    While ($i -lt $keydump.Count) {
-        $ResultObject = New-Object System.Object 
-        $ResultObject | Add-member -Name Hostname -Type NoteProperty -Value $node
-        $ResultObject | Add-member -Name Framework -Type NoteProperty -Value ((Split-Path $keydump[$i].PSPath -NoQualifier).replace((Convert-Path "$script:regkey"),""))
-        $ResultObject | Add-member -Name Version -Type NoteProperty -Value $keydump[$i].Version
-        If ($keydump[$i] | Get-ItemProperty -Name Release -ErrorAction SilentlyContinue) { 
-            $ResultObject | Add-member -Name Release -Type NoteProperty -Value $keydump[$i].Release
-            $ResultObject | Add-member -Name Title -Type NoteProperty -Value (FindRelease($keydump[$i].Release))
-            }
+        # Read remote hosts using WinRM
         Else {
-            $ResultObject | Add-member -Name Release -Type NoteProperty -Value "N/A"
-            $ResultObject | Add-member -Name Title -Type NoteProperty -Value "N/A"
-        }   
-        $results += $ResultObject
-    $i = $i+1
-    }  
-return($results)
-}
+            Write-Verbose -Message "Reading remote host [$($node)]$($script:regkey)"
+            Try { $keydump = Invoke-Command -ComputerName $node -Credential $script:creds -ScriptBlock { Get-ChildItem "$using:regkey" -Recurse | Get-ItemProperty -Name Version, Release -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^[vCF]' } | Sort-Object Version } -ErrorAction Stop }
+            Catch { Write-Host "ERROR: $($Error[0])" -ForegroundColor Red; $global:failed += $node; Return }
+        }
+    
+        # Hopefully should have data in $keydump now, but just in case...
+        If (!($keydump)) { Write-Host "ERROR: No usable data returned by $($node)" -ForegroundColor Red; $global:failed += $node; Return }
 
-Function FindRelease ($release) {
-    # Check and update as new releases are added...
-    # https://docs.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed
+        Write-Verbose -Message "Raw data from $($node): $keydump"
+ 
+        # Let's parse the data and build our ResultObject
+        $i = 0
+        While ($i -lt $keydump.Count) {
+            $ResultObject = New-Object System.Object 
+            $ResultObject | Add-Member -Name Hostname -Type NoteProperty -Value $node
+            $ResultObject | Add-Member -Name Framework -Type NoteProperty -Value ((Split-Path $keydump[$i].PSPath -NoQualifier).replace((Convert-Path "$script:regkey"), ""))
+            $ResultObject | Add-Member -Name Version -Type NoteProperty -Value $keydump[$i].Version
+            If ($keydump[$i] | Get-ItemProperty -Name Release -ErrorAction SilentlyContinue) { 
+                $ResultObject | Add-Member -Name Release -Type NoteProperty -Value $keydump[$i].Release
+                $ResultObject | Add-Member -Name Title -Type NoteProperty -Value (FindRelease($keydump[$i].Release))
+            } Else {
+                $ResultObject | Add-Member -Name Release -Type NoteProperty -Value "N/A"
+                $ResultObject | Add-Member -Name Title -Type NoteProperty -Value "N/A"
+            }   
+            $results += $ResultObject
+            $i = $i + 1
+        }  
+        return($results)
+    }
+
+    Function FindRelease ($release) {
+        # Check and update as new releases are added...
+        # https://docs.microsoft.com/en-us/dotnet/framework/migration-guide/how-to-determine-which-versions-are-installed
         Switch ($release) {
-		    "378389" {$release = ".NET Framework 4.5";break}
-		    "378675" {$release = ".NET Framework 4.5.1";break}
-		    "378758" {$release = ".NET Framework 4.5.1";break}
-		    "379893" {$release = ".NET Framework 4.5.2";break}
-		    "393295" {$release = ".NET Framework 4.6";break}
-		    "393297" {$release = ".NET Framework 4.6";break}
-		    "394254" {$release = ".NET Framework 4.6.1";break}
-		    "394271" {$release = ".NET Framework 4.6.1";break}
-		    "394802" {$release = ".NET Framework 4.6.2";break}
-		    "394806" {$release = ".NET Framework 4.6.2";break}
-		    "460798" {$release = ".NET Framework 4.7";break}
-		    "460805" {$release = ".NET Framework 4.7";break}
-		    "461308" {$release = ".NET Framework 4.7.1";break}
-		    "461310" {$release = ".NET Framework 4.7.1";break}
-		    "461808" {$release = ".NET Framework 4.7.2";break}
-		    "461814" {$release = ".NET Framework 4.7.2";break}
-            "528040" {$release = ".NET Framework 4.8";break}
-            "528372" {$release = ".NET Framework 4.8";break}
-            "528049" {$release = ".NET Framework 4.8";break}
-		    default {}
-		}
-return($release)
-}
+            "378389" { $release = ".NET Framework 4.5"; break }
+            "378675" { $release = ".NET Framework 4.5.1"; break }
+            "378758" { $release = ".NET Framework 4.5.1"; break }
+            "379893" { $release = ".NET Framework 4.5.2"; break }
+            "393295" { $release = ".NET Framework 4.6"; break }
+            "393297" { $release = ".NET Framework 4.6"; break }
+            "394254" { $release = ".NET Framework 4.6.1"; break }
+            "394271" { $release = ".NET Framework 4.6.1"; break }
+            "394802" { $release = ".NET Framework 4.6.2"; break }
+            "394806" { $release = ".NET Framework 4.6.2"; break }
+            "460798" { $release = ".NET Framework 4.7"; break }
+            "460805" { $release = ".NET Framework 4.7"; break }
+            "461308" { $release = ".NET Framework 4.7.1"; break }
+            "461310" { $release = ".NET Framework 4.7.1"; break }
+            "461808" { $release = ".NET Framework 4.7.2"; break }
+            "461814" { $release = ".NET Framework 4.7.2"; break }
+            "528040" { $release = ".NET Framework 4.8"; break }
+            "528372" { $release = ".NET Framework 4.8"; break }
+            "528049" { $release = ".NET Framework 4.8"; break }
+            default {}
+        }
+        return($release)
+    }
 } # End of Begin
 
 #--------------------------------------------------------[Execution]--------------------------------------------------------
@@ -168,7 +168,7 @@ Process {
         Write-Verbose -Message "Reading content from file $server" 
         Try { $server = Get-Content -Path $server -ErrorAction Stop }
         Catch { Write-Host "ERROR: Unable to read file $server. Check file path and permissions and try again." -ForegroundColor Red; Exit }
-	}
+    }
 
     # Main loop
     ForEach ($node in $server) { ReadNetVersion ($node) }
