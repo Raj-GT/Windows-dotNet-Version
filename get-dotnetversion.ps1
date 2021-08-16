@@ -142,6 +142,9 @@ Function FindRelease ($release) {
 		    "461310" {$release = ".NET Framework 4.7.1";break}
 		    "461808" {$release = ".NET Framework 4.7.2";break}
 		    "461814" {$release = ".NET Framework 4.7.2";break}
+            "528040" {$release = ".NET Framework 4.8";break}
+            "528372" {$release = ".NET Framework 4.8";break}
+            "528049" {$release = ".NET Framework 4.8";break}
 		    default {}
 		}
 return($release)
